@@ -1,0 +1,114 @@
+import React, { Component } from 'react';
+import { connect } from 'react-redux';
+import {
+    addTodos, toggleEdit
+} from '../../modules/todoredux';
+import * as firebase from 'firebase';
+import EditTodo from './EditTodo';
+import './protected.css'
+
+class Todo extends Component {
+    constructor(props) {
+        super(props);
+        let currentUser = firebase.auth().currentUser;
+        this.deleteTodoHandler = this.deleteTodoHandler.bind(this);
+        this.editTodoHandler = this.editTodoHandler.bind(this);
+        const {
+            todos,
+            editStatus
+        } = this.props
+        firebase.database().ref('todos/' + currentUser.uid).on('child_added', (data) => {
+            let obj = data.val();
+            obj.id = data.key;
+            let currentTodos = this.props.todos;
+            currentTodos = currentTodos.concat(obj)
+            this.props.addTodos(currentTodos);
+        })
+        firebase.database().ref('todos/' + currentUser.uid).on('child_changed', (data) => {
+            let obj = data.val();
+            obj.id = data.key;
+            let currentTods = this.props.todos;
+            // currentTodos = currentTodos.concat(obj)
+            let indexRemove;
+            for (var i = 0; i < currentTods.length; i++) {
+                if (currentTods[i].id === obj.id) {
+                    indexRemove = i;
+                }
+            }
+            currentTods = currentTods.slice(0, indexRemove).concat(obj).concat(currentTods.slice(indexRemove + 1));
+
+
+            this.props.addTodos(currentTods);
+        })
+
+    }
+    editTodoHandler(ev) {
+        console.log(ev.target.dataset);
+        // this.props.toggleEdit();
+        let editObj = {
+            id: ev.target.dataset.id,
+            todo: ev.target.dataset.todo
+        }
+        this.props.toggleEdit(editObj)
+
+
+    }
+    deleteTodoHandler(ev) {
+        let todoKey = ev.target.dataset.id;
+        let currentUser = firebase.auth().currentUser;
+        firebase.database().ref('todos/' + currentUser.uid + '/' + todoKey).remove()
+            .then((v) => {
+                let currentTodo = this.props.todos;
+                let indexRemove;
+                for (var i = 0; i < currentTodo.length; i++) {
+                    if (currentTodo[i].id === todoKey) {
+                        indexRemove = i;
+                    }
+                }
+                currentTodo = currentTodo.slice(0, indexRemove).concat(currentTodo.slice(indexRemove + 1));
+                this.props.addTodos(currentTodo);
+            });
+    }
+
+    render() {
+        console.log(this.props.todos, '-----------');
+        return (
+            // <div>
+            <div className="row ">
+            <div className="col s3"></div>
+            <div className="col s4 m5">
+              <div className="card-panel">
+                <br />
+                {this.props.todos.map((v, i) => {
+                    return (
+                        <h3  key={i} className='heading-2'>
+                            {'.'}{v.todo} {(!this.props.editStatus) ? (
+                                <span>
+                                    <button data-id={v.id} onClick={this.deleteTodoHandler} className="btn btn-primary">Delete</button>
+                                    <button data-id={v.id} data-todo={v.todo} onClick={this.editTodoHandler} className="btn btn-primary">Edit</button>
+                                </span>
+                            ) : ''}
+                        </h3>
+                    )
+                })}
+
+                <br />   <br />
+
+                {(this.props.editStatus) ? <EditTodo></EditTodo> : ''}
+
+            {/* </div> */}
+            </div>
+      </div>
+      {/* <div className="col s4"></div> */}
+
+    </div>        
+        )
+    }
+}
+
+module.exports = connect(state => ({
+    todos: state.todo.todos,
+    editStatus: state.todo.editStatus
+}), {
+        addTodos, toggleEdit
+    })(Todo)
