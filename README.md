@@ -1,1 +1,1 @@
-Todo with Authentication done with React on JSX using Redux.
+Todo with Google and Facebook Authentication on Firebase done with React and Redux.
